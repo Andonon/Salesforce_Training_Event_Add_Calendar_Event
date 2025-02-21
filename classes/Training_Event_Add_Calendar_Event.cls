@@ -20,7 +20,7 @@ public class Training_Event_Add_Calendar_Event {
         createCalendarEvents(trainingEventIds);
     }
 
-    // @future
+    @future
     public static void createCalendarEvents(Set<Id> trainingEventIds) {
 
         // Fetch Training Events with all required fields
