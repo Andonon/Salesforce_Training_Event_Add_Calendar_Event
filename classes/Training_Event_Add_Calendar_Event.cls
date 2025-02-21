@@ -75,11 +75,13 @@ public class Training_Event_Add_Calendar_Event {
     }
     
     // Clean time format, removing timezone info
-    private static String cleanTimeFormat(String originalTime) {
+    public static String cleanTimeFormat(String originalTime) {
         // Trim whitespace
         originalTime = originalTime.trim();
-        String cleanTime = ''; 
 
+        // Normalize the string by adding a space before AM/PM if missing
+        originalTime = normalizeTimeFormat(originalTime);
+        
         // Find the index of AM or PM
         Integer amPmIndex = originalTime.toUpperCase().lastIndexOf('AM');
         Integer pmPmIndex = originalTime.toUpperCase().lastIndexOf('PM');
@@ -93,6 +95,7 @@ public class Training_Event_Add_Calendar_Event {
         }
 
         // If AM/PM found, trim everything after it
+        String cleanTime = ''; 
         if (cutoffIndex > -1) {
             // Ensure we capture AM or PM and nothing more
             cleanTime = originalTime.substring(0, cutoffIndex + 2).trim();
@@ -105,24 +108,24 @@ public class Training_Event_Add_Calendar_Event {
         return cleanTime;
     }
     
-    // Combine Date and Time into DateTime
-    private static DateTime combineDateTime(Date eventDate, String timeString) {
-        if (eventDate == null || String.isBlank(timeString)) return null;
+    //Private method to help normalize the time string. 9:00AM should be 9:00 AM (with space)
+    private static String normalizeTimeFormat(String timeString) {
+        // Remove any existing spaces around AM/PM
+        timeString = timeString.replaceAll('\\s*AM\\s*', ' AM')
+                                .replaceAll('\\s*PM\\s*', ' PM');
         
-        // Parse time using the new method
-        Time eventTime = parseTimeString(timeString);
+        // Add space before AM/PM if missing
+        if (timeString.contains('AM') && !timeString.contains(' AM')) {
+            timeString = timeString.replace('AM', ' AM');
+        }
+        if (timeString.contains('PM') && !timeString.contains(' PM')) {
+            timeString = timeString.replace('PM', ' PM');
+        }
         
-        // Combine Date and Time
-        return Datetime.newInstance(
-            eventDate.year(), 
-            eventDate.month(), 
-            eventDate.day(), 
-            eventTime.hour(), 
-            eventTime.minute(), 
-            0
-        );
-    }    
+        return timeString;
+    }
 
+    //Private method to parse the time string into hours and minutes and adjusting for AM PM. 
     private static Time parseTimeString(String timeString) {
         if (String.isBlank(timeString)) return null;
         
@@ -148,108 +151,22 @@ public class Training_Event_Add_Calendar_Event {
         // Create and return Time instance
         return Time.newInstance(hours, minutes, 0, 0);
     }
+
+    // Combine Date and Time into DateTime
+    private static DateTime combineDateTime(Date eventDate, String timeString) {
+        if (eventDate == null || String.isBlank(timeString)) return null;
+        
+        // Parse time using the new method
+        Time eventTime = parseTimeString(timeString);
+        
+        // Combine Date and Time
+        return Datetime.newInstance(
+            eventDate.year(), 
+            eventDate.month(), 
+            eventDate.day(), 
+            eventTime.hour(), 
+            eventTime.minute(), 
+            0
+        );
+    }    
 }
-
-    //     //Create a list for Events that we will insert. (Calendar Events). 
-    //     List<Event> eventsToAdd = new List<Event>();
-
-    //     // Collect Training Event Ids only if it's after update
-    //     Map<Id, Integer> trainingEventToEventCount = new Map<Id, Integer>();
-        
-    //     // Query existing Events for provided Training Events
-    //     for (AggregateResult ar : [SELECT WhatId, COUNT(Id) eventCount FROM Event WHERE WhatId IN :trainingEventIds GROUP BY WhatId]) {
-    //         trainingEventToEventCount.put((Id)ar.get('WhatId'), (Integer)ar.get('eventCount'));
-    //     }
-        
-    //     // Retrieve the RecordTypeId for 'Standard_Web' (Developer Name, Record Type). 
-    //     String strRecordTypeID = Schema.SObjectType.Event.getRecordTypeInfosByDeveloperName().get('Standard_Web').getRecordTypeId();
-
-    //     //Get the Training Events from the Id's passed in. 
-    //     List<Training_Event__c> lstTrainingEvents = [SELECT Id, Name, OwnerId, Start_Date__c, Start_Time__c, End_Date__c, End_Time__c FROM Training_Event__c WHERE Id IN :trainingEventIds];
-
-    //     //Loop on the training events. 
-    //     for (Training_Event__c trainingEvent : lstTrainingEvents) {
-    //         //Get Existing Calendar Events for the current Training Event. 
-    //         Integer existingEventsCount = trainingEventToEventCount.get(trainingEvent.Id) != null ? trainingEventToEventCount.get(trainingEvent.Id) : 0;
-            
-    //         //If we did not find any, create one. 
-    //         if (existingEventsCount == null || existingEventsCount == 0) {
-
-    //             // Get the user's timezone
-    //             TimeZone timeZone = UserInfo.getTimeZone();
-
-    //             // Conversion of Start and End Date/Time by trimming any additional text
-    //             Datetime startDateTime = convertToUserTimeZone(
-    //                 trainingEvent.Start_Date__c, trimTime(trainingEvent.Start_Time__c), timeZone);
-
-    //             Datetime endDateTime = convertToUserTimeZone(
-    //                 trainingEvent.End_Date__c, trimTime(trainingEvent.End_Time__c), timeZone);
-                
-    //             // Create Event record
-    //             Event newEvent = new Event(
-    //                 OwnerId = trainingEvent.OwnerId,
-    //                 RecordTypeId = strRecordTypeID,
-    //                 WhatId = trainingEvent.Id,
-    //                 ActivityDateTime = startDateTime,
-    //                 EndDateTime = endDateTime,
-    //                 Subject = trainingEvent.Name
-    //             );
-    //             eventsToAdd.add(newEvent);
-    //         }
-    //     }
-
-    //     if (!eventsToAdd.isEmpty()) {
-    //         insert eventsToAdd;
-    //     }
-    // }
-
-    // //Private method to convert the Time to the users timezone when creating the event, or else they get created in GMT Time. 
-    // private static Datetime convertToUserTimeZone(Date eventDate, String eventTime, TimeZone timeZone) {
-    //     // Parse the time and convert to Datetime using user's timezone
-    //     Datetime eventDateTime = getDateTime(eventDate, eventTime);
-    //     return eventDateTime.addSeconds(timeZone.getOffset(eventDateTime));
-    // }
-
-    // //Private method to put together a real Datetime for the Event. Parses the Training Event Start Time String. 
-    // private static Datetime getDateTime(Date eventDate, String eventTime) {
-    //     Datetime eventDateTime = null; 
-    //     if(eventTime.substring(0, 2).contains(':')){
-    //         // Parse the time and convert to Datetime
-    //         eventDateTime = DateTime.newInstanceGmt(eventDate.year(), eventDate.month(), 
-    //         eventDate.day(), 
-    //         Integer.valueOf(eventTime.substring(0, 1)), 
-    //         Integer.valueOf(eventTime.substring(2, 4)), 
-    //         0);
-    //         // Adjust for AM/PM
-    //         if (eventTime.contains('PM') && Integer.valueOf(eventTime.substring(0, 1)) < 12) {
-    //             eventDateTime = eventDateTime.addHours(12);
-    //         }
-    //     }
-    //     else{
-    //         // Parse the time and convert to Datetime
-    //         eventDateTime = DateTime.newInstanceGmt(eventDate.year(), eventDate.month(), 
-    //         eventDate.day(), 
-    //         Integer.valueOf(eventTime.substring(0, 2)), 
-    //         Integer.valueOf(eventTime.substring(3, 5)), 
-    //         0);
-    //         // Adjust for AM/PM
-    //         if (eventTime.contains('PM') && Integer.valueOf(eventTime.substring(0, 2)) < 12) {
-    //             eventDateTime = eventDateTime.addHours(12);
-    //         } else if (eventTime.contains('AM') && Integer.valueOf(eventTime.substring(0, 2)) == 12) {
-    //             eventDateTime = eventDateTime.addHours(-12);
-    //         }
-    //     }
-        
-    //     return eventDateTime;
-    // }
-
-    // //Private method to trimTime. Uses regex to clean the Start Time and End Time fields, 
-    // //returning the time without any timezone or extra text the user may have added. 
-    // private static String trimTime(String eventTime) {
-    //     // Trim to only obtain time without extra timezone info
-    //     String trimmedTime = eventTime.replaceAll('[^0-9:AMPamp ]', '').trim();
-    //     // Ensure it excludes any additional text after AM/PM
-    //     trimmedTime = trimmedTime.substring(0, trimmedTime.indexOf('M') + 1);
-    //     return trimmedTime;
-    // }
-// }
